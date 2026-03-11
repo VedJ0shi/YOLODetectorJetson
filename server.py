@@ -1,4 +1,5 @@
 import threading, time
+import numpy as np
 import gi 
 gi.require_version('Gst', '1.0')
 gi.require_version('GstRtspServer', '1.0')
@@ -27,15 +28,15 @@ class RTSPMediaServer:
 
         factory = GstRtspServer.RTSPMediaFactory()
         factory.set_launch(
-            f"( appsrc name=src "
-            f"  caps=video/x-raw,format=BGR,width={width},height={height},"
+            f"(appsrc name=src "
+            f"caps=video/x-raw,format=BGR,width={width},height={height},"
             f"framerate={fps}/1 "
-            f"  block=true format=time is-live=true ! "
-            f"  videoconvert ! "
-            f"  video/x-raw,format=I420 ! "
-            f"  nvv4l2h264enc bitrate=4000000 iframeinterval=30 ! "
-            f"  h264parse ! "
-            f"  rtph264pay name=pay0 pt=96 config-interval=1 )"
+            f"block=true format=time is-live=true ! "
+            f"videoconvert ! "
+            f"video/x-raw,format=I420 ! "
+            f"nvv4l2h264enc bitrate=4000000 iframeinterval=30 ! "
+            f"h264parse ! "
+            f"rtph264pay name=pay0 pt=96 config-interval=1 )"
         )
         factory.set_shared(True)    # one pipeline shared across all clients
         factory.connect("media-configure", self._on_media_configure)

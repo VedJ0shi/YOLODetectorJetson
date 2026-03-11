@@ -1,4 +1,5 @@
 import cv2
+import sys
 from server import RTSPMediaServer
 from config import RTSP_PORT, RTSP_PATH, Object_classes, Object_colors
 from elements.yolo import OBJ_DETECTION
@@ -66,7 +67,7 @@ def main():
                 break
 
     except KeyboardInterrupt:
-        pass
+        sys.exit()
     finally:
         cam.release()
         print("Stopped.")
