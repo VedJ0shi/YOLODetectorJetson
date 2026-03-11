@@ -63,13 +63,12 @@ def main():
             #Serve annotated frame to client via ongoing rtsp stream
             rtsp.push_frame(frame)
 
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
+        
 
     except KeyboardInterrupt:
-        sys.exit()
-    finally:
+        rtsp.stop()
         cam.release()
+        sys.exit()
         print("Stopped.")
 
 

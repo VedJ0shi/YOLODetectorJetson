@@ -73,3 +73,8 @@ class RTSPMediaServer:
         ret = self._appsrc.emit("push-buffer", buf)
         if ret != Gst.FlowReturn.OK:
             print(f"[WARN] appsrc push-buffer returned {ret}")
+    
+    def stop(self):
+        """Cleanly shut down the event loop and wait for the thread to exit."""
+        if self._loop and self._loop.is_running():
+            self._loop.quit()
