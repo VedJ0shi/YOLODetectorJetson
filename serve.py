@@ -42,11 +42,11 @@ def output_pipeline(
     "nvv4l2h264enc bitrate=4000000 iframeinterval=30 ! "
     f"h264parse ! "
     "mpegtsmux ! "
-    f"udpsink host=127.0.0.1 port=5000"
+    "udpsink host=127.0.0.1 port=5000"
 )
 
 
-cam = cv2.VideoCapture(capture_pipeline()), cv2.CAP_GSTREAMER)
+cam = cv2.VideoCapture(capture_pipeline(), cv2.CAP_GSTREAMER)
 stream = cv2.VideoWriter(output_pipeline(), cv2.CAP_GSTREAMER, 0, 30, (1280, 720))
 
 while True:
