@@ -1,6 +1,6 @@
 import cv2
 from elements.yolo import OBJ_DETECTION
-from config import RTSP_PORT, RTSP_PATH, Object_classes, Object_colors
+from config import Object_classes, Object_colors
 
 
 Object_detector = OBJ_DETECTION('weights/yolov5s.pt', Object_classes)
@@ -35,7 +35,7 @@ def output_gstreamer_pipeline(
     "video/x-raw,format=I420 ! "
     f"x264enc tune=zerolatency bitrate=2000 speed-preset=ultrafast ! "
     "rtph264pay config-interval=1 pt=96 ! "
-    f"rtspclientsink location=rtsp://localhost:{RTSP_PORT}/{RTSP_PATH}"
+    f"udpsink host='127.0.0.1' port=5000"
 )
 
 

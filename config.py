@@ -1,7 +1,5 @@
 from numpy import random
 
-RTSP_PORT = 8554
-RTSP_PATH = 'detect'
 
 Object_classes = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light',
                 'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow',
