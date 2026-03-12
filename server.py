@@ -22,9 +22,17 @@ class RTSPMediaServer:
         self.fps    = fps
         self._appsrc = None          # set once the pipeline is first used
 
+        # Create context and loop explicitly before attach()
+        self._context = GLib.MainContext.new()
+        self._loop    = GLib.MainLoop.new(self._context, False)
+
         # Build the server
-        self.server = GstRtspServer.RTSPServer()
-        self.server.set_service(port)
+        self._server = GstRtspServer.RTSPServer()
+        self._server.set_service(port)
+        self._server.attach(self._context)
+
+        # Connect client callback for diagnostics
+        self._server.connect("[SERVER] client-connected", self._on_client_connected)
 
         factory = GstRtspServer.RTSPMediaFactory()
         factory.set_launch(
@@ -41,20 +49,29 @@ class RTSPMediaServer:
         factory.set_shared(True)    # one pipeline shared across all clients
         factory.connect("media-configure", self._on_media_configure)
 
-        self.server.get_mount_points().add_factory(path, factory)
-        self.server.attach(None)
+        self._server.get_mount_points().add_factory(path, factory)
+         
+        print(f"[RTSP] Server initialised on port {port}, path {path}")
+    
 
         # Run GLib loop on a daemon thread
+        self._context = GLib.MainContext.new()
+        self._loop = GLib.MainLoop.new(self._context, False)
         self._loop = GLib.MainLoop()
         t = threading.Thread(target=self._loop.run, daemon=True)
         t.start()
 
-        print(f"RTSP server live at  rtsp://0.0.0.0:{port}{path}")
+        print(f"[SERVER] RTSP streaming live at rtsp://0.0.0.0:{port}{path}")
 
     def _on_media_configure(self, factory, media):
         """Called when a client triggers pipeline creation — grab the appsrc."""
         pipeline = media.get_element()
+        print("[SERVER] Client connected, pipeline being configured")
         self._appsrc = pipeline.get_by_name("src")
+
+    
+    def _on_client_connected(self, server, client):
+        print(f"[SERVER] TCP connection received from client")
 
     def push_frame(self, frame: np.ndarray):
         """Push a BGR numpy frame into the RTSP pipeline."""
