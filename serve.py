@@ -1,11 +1,17 @@
 import cv2
+import numpy as np
 from elements.yolo import OBJ_DETECTION
 from config import Object_classes, Object_colors
 
 
 Object_detector = OBJ_DETECTION('weights/yolov5s.pt', Object_classes)
 
-def gstreamer_pipeline(
+print("[SERVER] Warming up model...")
+_dummy = np.zeros((720, 1280, 3), dtype=np.uint8)
+Object_detector.detect(_dummy)
+print("[SERVER] Model ready.")
+
+def capture_pipeline(
     capture_width=1920,
     capture_height=1080,
     display_width=1280,
@@ -23,7 +29,7 @@ def gstreamer_pipeline(
 )
 
 
-def output_gstreamer_pipeline(
+def output_pipeline(
     display_width=1280,
     display_height=720,
     framerate=30,
@@ -32,15 +38,16 @@ def output_gstreamer_pipeline(
     "appsrc ! "
     f"video/x-raw,format=BGR,width={display_width},height={display_height},framerate={framerate}/1 ! "
     "videoconvert ! "
-    "video/x-raw,format=I420 ! "
-    f"x264enc tune=zerolatency bitrate=2000 speed-preset=ultrafast ! "
-    "rtph264pay config-interval=1 pt=96 ! "
-    f"udpsink host='127.0.0.1' port=5000"
+    "video/x-raw,format=NV12 ! "
+    "nvv4l2h264enc bitrate=4000000 iframeinterval=30 ! "
+    f"h264parse ! "
+    "mpegtsmux ! "
+    f"udpsink host=127.0.0.1 port=5000"
 )
 
 
-cam = cv2.VideoCapture(gstreamer_pipeline(), cv2.CAP_GSTREAMER)
-stream = cv2.VideoWriter(output_gstreamer_pipeline(), cv2.CAP_GSTREAMER, 0, 30, (1280, 720))
+cam = cv2.VideoCapture(capture_pipeline()), cv2.CAP_GSTREAMER)
+stream = cv2.VideoWriter(output_pipeline(), cv2.CAP_GSTREAMER, 0, 30, (1280, 720))
 
 while True:
     ok, frame = cam.read()
