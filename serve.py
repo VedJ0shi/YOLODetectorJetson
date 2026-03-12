@@ -6,7 +6,7 @@ from config import Object_classes, Object_colors
 
 Object_detector = OBJ_DETECTION('weights/yolov5s.pt', Object_classes)
 
-print("[SERVER] Warming up model...")
+
 _dummy = np.zeros((720, 1280, 3), dtype=np.uint8)
 Object_detector.detect(_dummy)
 print("[SERVER] Model ready.")
@@ -35,13 +35,17 @@ def output_pipeline(
     framerate=30,
 ):
     return (
-    "appsrc ! "
-    f"video/x-raw,format=BGR,width={display_width},height={display_height},framerate={framerate}/1 ! "
-    "videoconvert ! "
-    "video/x-raw,format=I420 ! "
-    f"x264enc tune=zerolatency bitrate=2000 speed-preset=ultrafast ! "
-    "rtph264pay config-interval=1 pt=96 ! "
-    f"udpsink host=127.0.0.1 port=5000"
+        "appsrc ! "
+        f"video/x-raw,format=BGR,width={display_width},height={display_height},"
+        f"framerate={framerate}/1 ! "
+        "videoconvert ! "
+        "video/x-raw,format=BGRx ! "
+        "nvvidconv ! "
+        "video/x-raw(memory:NVMM),format=NV12 ! "
+        "nvv4l2h264enc bitrate=4000000 iframeinterval=30 ! "
+        "h264parse ! "
+        "mpegtsmux ! "
+        f"udpsink host=127.0.0.1 port=5000"
 )
 
 
@@ -65,6 +69,7 @@ while True:
             frame = cv2.putText(frame, f'{label} ({str(score)})', (xmin,ymin), cv2.FONT_HERSHEY_SIMPLEX , 0.75, color, 1, cv2.LINE_AA)
 
         stream.write(frame)
+        print("[SERVER] Sent frame")
 
     keyCode = cv2.waitKey(30)
     if keyCode == ord('q'):
