@@ -44,6 +44,8 @@ def main():
             if not ok:
                 #frame dropped
                 continue
+            
+            print("received frame")
 
             #YOLO Detection:
             objs = Object_detector.detect(frame)
