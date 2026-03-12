@@ -19,7 +19,8 @@ class RTSPMediaServer:
         self.width   = width
         self.height  = height
         self.fps     = fps
-        self._appsrc = None   # set once a client triggers pipeline creation
+        self._appsrc   = None   # set once a client triggers pipeline creation
+        self._pipeline_playing = False  # True only after pipeline reaches PLAYING
 
         # FIX: Create ONE context and ONE loop bound to it.
         # Never create a second context or loop later in __init__.
@@ -62,20 +63,44 @@ class RTSPMediaServer:
         print(f"[SERVER] RTSP streaming live at rtsp://0.0.0.0:{port}{path}")
 
     def _on_media_configure(self, factory, media):
-        """Called when a client triggers pipeline creation — grab the appsrc."""
+        """Called when a client triggers pipeline creation — grab the appsrc
+        and wait for the pipeline to reach PLAYING before allowing pushes."""
         pipeline = media.get_element()
-        print("[SERVER] Client connected, pipeline being configured")
+        print("[SERVER] Pipeline being configured")
         self._appsrc = pipeline.get_by_name("src")
+        self._pipeline_playing = False
         if self._appsrc is None:
             print("[WARN] Could not find appsrc element named 'src' in pipeline")
+            return
+
+        # Watch the bus for STATE_CHANGED so we know when PLAYING is reached.
+        bus = media.get_element().get_bus()
+        bus.add_signal_watch()
+        bus.connect("message::state-changed", self._on_state_changed, pipeline)
+        bus.connect("message::error", self._on_bus_error)
+
+    def _on_state_changed(self, bus, message, pipeline):
+        # Only care about state changes on the top-level pipeline element.
+        if message.src != pipeline:
+            return
+        old, new, pending = message.parse_state_changed()
+        if new == Gst.State.PLAYING:
+            print("[SERVER] Pipeline is PLAYING — ready to receive frames")
+            self._pipeline_playing = True
+        elif new != Gst.State.PLAYING:
+            self._pipeline_playing = False
+
+    def _on_bus_error(self, bus, message):
+        err, debug = message.parse_error()
+        print(f"[SERVER] Pipeline error: {err.message} | debug: {debug}")
 
     def _on_client_connected(self, server, client):
         print("[SERVER] TCP connection received from client")
 
     def push_frame(self, frame: np.ndarray):
         """Push a BGR numpy frame into the RTSP pipeline."""
-        if self._appsrc is None:
-            return   # no client connected yet
+        if self._appsrc is None or not self._pipeline_playing:
+            return   # no client connected, or pipeline not ready yet
 
         data = frame.tobytes()
         buf  = Gst.Buffer.new_allocate(None, len(data), None)
