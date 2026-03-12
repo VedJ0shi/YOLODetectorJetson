@@ -21,12 +21,12 @@ class RTSPMediaServer:
         self.fps     = fps
         self._appsrc = None   # set once a client triggers pipeline creation
 
-        # Create a context and loop bound to it.
+        # FIX: Create ONE context and ONE loop bound to it.
         # Never create a second context or loop later in __init__.
         self._context = GLib.MainContext.new()
         self._loop    = GLib.MainLoop.new(self._context, False)
 
-        # Build the server and attach it to the same context created above.
+        # Build the server and attach it to the SAME context created above.
         self._server = GstRtspServer.RTSPServer()
         self._server.set_service(str(port))
         self._server.attach(self._context)   # must happen before the thread starts
@@ -41,7 +41,7 @@ class RTSPMediaServer:
             f"framerate={fps}/1 "
             f"  block=true format=time is-live=true ! "
             f"  videoconvert ! "
-            f"  video/x-raw,format=I420 ! "
+            f"  video/x-raw,format=NV12 ! "
             f"  nvv4l2h264enc bitrate=4000000 iframeinterval=30 ! "
             f"  h264parse ! "
             f"  rtph264pay name=pay0 pt=96 config-interval=1 )"
@@ -82,7 +82,9 @@ class RTSPMediaServer:
         buf.fill(0, data)
 
         # Monotonic timestamps are required by GStreamer for live sources.
-        buf.pts      = time.monotonic_ns()
+        # time.monotonic_ns() was added in Python 3.7; use monotonic() * 1e9
+        # for compatibility with the Python 3.6 on Jetson Nano.
+        buf.pts      = int(time.monotonic() * 1e9)
         buf.duration = int(1e9 / self.fps)
 
         ret = self._appsrc.emit("push-buffer", buf)
