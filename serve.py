@@ -38,11 +38,10 @@ def output_pipeline(
     "appsrc ! "
     f"video/x-raw,format=BGR,width={display_width},height={display_height},framerate={framerate}/1 ! "
     "videoconvert ! "
-    "video/x-raw,format=NV12 ! "
-    "nvv4l2h264enc bitrate=4000000 iframeinterval=30 ! "
-    f"h264parse ! "
-    "mpegtsmux ! "
-    "udpsink host=127.0.0.1 port=5000"
+    "video/x-raw,format=I420 ! "
+    f"x264enc tune=zerolatency bitrate=2000 speed-preset=ultrafast ! "
+    "rtph264pay config-interval=1 pt=96 ! "
+    f"udpsink host=127.0.0.1 port=5000"
 )
 
 
