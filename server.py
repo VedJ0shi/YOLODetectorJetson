@@ -32,7 +32,7 @@ class RTSPMediaServer:
         self._server.attach(self._context)
 
         # Connect client callback for diagnostics
-        self._server.connect("[SERVER] client-connected", self._on_client_connected)
+        self._server.connect("client-connected", self._on_client_connected)
 
         factory = GstRtspServer.RTSPMediaFactory()
         factory.set_launch(

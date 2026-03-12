@@ -66,10 +66,12 @@ def main():
         
 
     except KeyboardInterrupt:
-        rtsp.stop()
-        cam.release()
-        sys.exit()
-        print("Stopped.")
+        pass
+
+    rtsp.stop()
+    cam.release()
+    sys.exit()
+    
 
 
 if __name__ == "__main__":
