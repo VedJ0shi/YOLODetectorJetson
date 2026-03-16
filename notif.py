@@ -57,9 +57,9 @@ def _publish_watch_event(event):
 def _publish_catch_summary():
     summary = {'detected':[], 'time':[]}
     for obj in Object_register.catch:
-        if caught := Object_register.catch[obj]:
+        if Object_register.catch[obj]:
             summary['detected'].append(obj)
-            summary['time'].append(caught)
+            summary['time'].append(Object_register.catch[obj])
     notification = dumps(summary)
     client.publish(TOPIC_CATCH, notification, qos=1)
 
