@@ -3,7 +3,7 @@ import notif
 import detect
 
 if __name__ == "__main__":
-    #initialize api and mqtt client services:
+    #initialize api and notification services:
     api.start_surveillance_api()
     notif.start_surveillance_notifications()
 

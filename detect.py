@@ -2,7 +2,7 @@ import cv2
 import time
 import numpy as np
 from elements.yolo import OBJ_DETECTION
-from cvconfig import Object_classes, Object_colors
+from consts import Object_classes, Object_colors
 from registry import Object_register
 from notif import update_system
 

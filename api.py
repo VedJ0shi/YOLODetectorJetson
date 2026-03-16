@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from threading import Thread
 from registry import Object_register
-from cvconfig import Object_classes
+from consts import Object_classes
 
 
 app = Flask(__name__)
