@@ -1,24 +1,21 @@
 import cv2
+import time
 import numpy as np
 from elements.yolo import OBJ_DETECTION
+from cvconfig import Object_classes, Object_colors
+from registry import Object_register
+from notif import update_system
 
-MAC_IP = "192.168.4.230"
-MAC_RTP_PORT = 5000
 
-Object_classes = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light',
-                'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow',
-                'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee',
-                'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard',
-                'tennis racket', 'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple',
-                'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair', 'couch',
-                'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone',
-                'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear',
-                'hair drier', 'toothbrush' ]
-
-Object_colors = list(np.random.rand(80,3)*255)
 Object_detector = OBJ_DETECTION('weights/yolov5s.pt', Object_classes)
 
-def gstreamer_pipeline(
+#warming up YOLO for inference
+_dummy = np.zeros((720, 1280, 3), dtype=np.uint8)
+Object_detector.detect(_dummy)
+print("[CV Service] Model ready")
+
+
+def capture_pipeline(
     capture_width=1920,
     capture_height=1080,
     display_width=1280,
@@ -36,48 +33,66 @@ def gstreamer_pipeline(
 )
 
 
-def output_gstreamer_pipeline(
+def output_pipeline(
     display_width=1280,
     display_height=720,
     framerate=30,
+    host = '127.0.0.1', 
+    port = 5000 
 ):
     return (
-    "appsrc ! "
-    f"video/x-raw,format=BGR,width={display_width},height={display_height},framerate={framerate}/1 ! "
-    "videoconvert ! "
-    "video/x-raw,format=I420 ! "
-    f"x264enc tune=zerolatency bitrate=2000 speed-preset=ultrafast ! "
-    "rtph264pay config-interval=1 pt=96 ! "
-    f"udpsink host={MAC_IP} port={MAC_RTP_PORT}"
+        "appsrc ! "
+        f"video/x-raw,format=BGR,width={display_width},height={display_height},"
+        f"framerate={framerate}/1 ! "
+        "videoconvert ! "
+        "video/x-raw,format=BGRx ! "
+        "nvvidconv ! "
+        "video/x-raw(memory:NVMM),format=NV12 ! "
+        "nvv4l2h264enc bitrate=4000000 iframeinterval=30 ! "
+        "h264parse ! "
+        "mpegtsmux ! "
+        f"udpsink host={host} port={port}"
 )
 
 
-cam = cv2.VideoCapture(gstreamer_pipeline(), cv2.CAP_GSTREAMER)
-stream = cv2.VideoWriter(output_gstreamer_pipeline(), cv2.CAP_GSTREAMER, 0, 30, (1280, 720))
+def start_camera_detection():
 
-while True:
-    ok, frame = cam.read()
-    if ok:
-        # detection process
-        objs = Object_detector.detect(frame)
+    cam = cv2.VideoCapture(capture_pipeline(), cv2.CAP_GSTREAMER)
+    stream = cv2.VideoWriter(output_pipeline(), cv2.CAP_GSTREAMER, 0, 30, (1280, 720))
 
-        # plotting
-        for obj in objs:
-            # print(obj)
-            label = obj['label']
-            score = obj['score']
-            [(xmin,ymin),(xmax,ymax)] = obj['bbox']
-            color = Object_colors[Object_classes.index(label)]
-            frame = cv2.rectangle(frame, (xmin,ymin), (xmax,ymax), color, 2) 
-            frame = cv2.putText(frame, f'{label} ({str(score)})', (xmin,ymin), cv2.FONT_HERSHEY_SIMPLEX , 0.75, color, 1, cv2.LINE_AA)
+    while True:
+        ok, frame = cam.read()
+        if ok:
+            now  = time.time()
+            #detection call
+            objs = Object_detector.detect(frame)
+            
+            #frame annotation procedure
+            for obj in objs: #iterate over predictions
+                label = obj['label']
+                print(label)
+                score = obj['score']
+                [(xmin,ymin),(xmax,ymax)] = obj['bbox']
+                color = Object_colors[Object_classes.index(label)]
+                frame = cv2.rectangle(frame, (xmin,ymin), (xmax,ymax), color, 2) 
+                frame = cv2.putText(frame, f'{label} ({str(score)})', (xmin,ymin), cv2.FONT_HERSHEY_SIMPLEX , 0.75, color, 1, cv2.LINE_AA)
 
-        stream.write(frame)
+                # Update system state and fire notification hooks
+                if label in Object_register.watch:
+                    update_system("watch", {"detected": label, "time": now})
+    
+                if label in Object_register.catch:
+                    update_system("catch", {"detected": label, "time": now})
 
-    keyCode = cv2.waitKey(30)
-    if keyCode == ord('q'):
-        break
+            #streaming frames to mediamtx server
+            stream.write(frame)
+            
+
+        keyCode = cv2.waitKey(30)
+        if keyCode == ord('q'):
+            break
 
 
-cam.release()
-stream.release()
+    cam.release()
+    stream.release()
 
