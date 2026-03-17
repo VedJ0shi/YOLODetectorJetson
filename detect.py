@@ -37,8 +37,10 @@ def output_pipeline(
     display_width=1280,
     display_height=720,
     framerate=30,
-    host = '127.0.0.1', 
-    port = 5000 
+    host= '127.0.0.1', 
+    port= 5000,
+    bitrate=4000000, #controls bandwidth
+    iframe_interval=30 #controls frame drops
 ):
     return (
         "appsrc ! "
@@ -48,7 +50,7 @@ def output_pipeline(
         "video/x-raw,format=BGRx ! "
         "nvvidconv ! "
         "video/x-raw(memory:NVMM),format=NV12 ! "
-        "nvv4l2h264enc bitrate=4000000 iframeinterval=30 ! "
+        f"nvv4l2h264enc bitrate={bitrate} iframeinterval={iframe_interval} ! "
         "h264parse ! "
         "mpegtsmux ! "
         f"udpsink host={host} port={port}"
@@ -78,7 +80,11 @@ def start_camera_detection():
                 frame = cv2.putText(frame, f'{label} ({str(score)})', (xmin,ymin), cv2.FONT_HERSHEY_SIMPLEX , 0.75, color, 1, cv2.LINE_AA)
 
                 # Update system state and fire notification hooks
+                i = 0
                 if label in Object_register.watch:
+                    if i == 0:
+                        print("Object_register initialized", Object_register.watch, Object_register.catch)
+                        i = 1
                     update_system("watch", {"detected": label, "time": now})
     
                 if label in Object_register.catch:

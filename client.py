@@ -34,31 +34,31 @@ def post_config(nano_ip: str, watch: list, catch: list):
         resp = requests.post(url, json=payload, timeout=5)
         resp.raise_for_status()
         data = resp.json()
-        print(f"[CONFIG] watch={data['watch']}")
-        print(f"[CONFIG] catch={data['catch']}")
+        print(f"[API Client] Successful POST: watch={data['watch']}")
+        print(f"[API Client] Successful POST: catch={data['catch']}")
     except requests.exceptions.ConnectionError:
-        print(f"[ERROR] Could not reach Nano at {url} — is run.py running?")
+        print(f"[API Client] Error: Could not reach Nano at {url} — is run.py running?")
         sys.exit(1)
     except Exception as e:
-        print(f"[ERROR] Config POST failed: {e}")
+        print(f"[API Client] Error: Config POST failed: {e}")
         sys.exit(1)
 
 
 def _on_connect(client, userdata, flags, rc):
     if rc != 0:
-        print(f"[MQTT] Connection failed, rc={rc}")
+        print(f"[Notif Client] Connection failed, rc={rc}")
         sys.exit(1)
-    print("[MQTT] Connected to broker")
+    print("[Notif Client] Connected to broker")
     client.subscribe(TOPIC_WATCH, qos=1)
     client.subscribe(TOPIC_CATCH, qos=1)
-    print(f"[MQTT] Subscribed — waiting for events \n")
+    print(f"[Notif Client] Subscribed — waiting for events \n")
 
 
 def _on_message(client, userdata, msg):
     try:
         data = json.loads(msg.payload.decode())
     except Exception:
-        print(f"[MQTT] Unreadable message on {msg.topic}: {msg.payload}")
+        print(f"[Notif Client] Unreadable message on {msg.topic}: {msg.payload}")
         return
 
     if msg.topic == TOPIC_WATCH:
@@ -66,13 +66,13 @@ def _on_message(client, userdata, msg):
         label = data.get("detected", "?")
         ts    = data.get("time", 0)
         t     = datetime.datetime.fromtimestamp(ts).strftime("%H:%M:%S")
-        print(f"[MQTT]  {label} detected at {t}")
+        print(f"[Notif Client]  {label} detected at {t}")
 
     elif msg.topic == TOPIC_CATCH:
         # Ex payload: {"detected": ["car", "person"], "time": [ts1, ts2]}
         detected = data.get("detected", [])
         times    = data.get("time",     [])
-        print("[MQTT]  Session summary:")
+        print("[Notif Client]  Session summary:")
         if detected:
             for label, ts in zip(detected, times):
                 t = datetime.datetime.fromtimestamp(ts).strftime("%H:%M:%S")
@@ -84,26 +84,29 @@ def _on_message(client, userdata, msg):
 def main():
     parser = argparse.ArgumentParser(description="Nano surveillance client")
     parser.add_argument("--camera",  default="192.168.99.24", help="Nano IP address")
+    parser.add_argument("--device", default="", help="MAC address or similar identifying value for optional Persistent Sessions" )
     parser.add_argument("--watch", nargs="*", default=[],
-                        help="Watch all appearances and instantly get notified")
+                        help="Watch all appearances; get real-time notifications during session")
     parser.add_argument("--catch", nargs="*", default=[],
-                        help="Catch the first appearance and see in session summary")
+                        help="Catch the first appearance only; see timestamp in session summary")
     args = parser.parse_args()
 
-    post_config(args.nano, args.watch, args.catch)
+    post_config(args.camera, args.watch, args.catch)
 
-    client = mqtt.Client()
+    client = mqtt.Client(client_id=args.device)
+    if args.device != "":
+        client._clean_session = False #enables persistent sessions
     client.on_connect = _on_connect
     client.on_message = _on_message
 
     try:
         client.connect(args.camera, MQTT_PORT, keepalive=60)
     except Exception as e:
-        print(f"[ERROR] Could not connect to MQTT broker at {args.nano}:{MQTT_PORT}: {e}")
+        print(f"[Notif Client] Could not connect to MQTT broker at {args.nano}:{MQTT_PORT}: {e}")
         sys.exit(1)
 
     def _stop(signum, frame):
-        print("\n[INFO] Disconnecting...")
+        print("\n[Info] Disconnecting...")
         client.disconnect()
         sys.exit(0)
 
