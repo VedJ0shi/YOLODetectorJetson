@@ -34,8 +34,8 @@ def post_config(nano_ip: str, watch: list, catch: list):
         resp = requests.post(url, json=payload, timeout=5)
         resp.raise_for_status()
         data = resp.json()
-        print(f"[API Client] Successful POST: watch={data['watch']}")
-        print(f"[API Client] Successful POST: catch={data['catch']}")
+        print(f"[API Client] Successful POST: watching {data['watch']}")
+        print(f"[API Client] Successful POST: catching {data['catch']}")
     except requests.exceptions.ConnectionError:
         print(f"[API Client] Error: Could not reach Nano at {url} — is run.py running?")
         sys.exit(1)
@@ -84,7 +84,6 @@ def _on_message(client, userdata, msg):
 def main():
     parser = argparse.ArgumentParser(description="Nano surveillance client")
     parser.add_argument("--camera",  default="192.168.99.24", help="Nano IP address")
-    parser.add_argument("--device", default="", help="MAC address or similar identifying value for optional Persistent Sessions" )
     parser.add_argument("--watch", nargs="*", default=[],
                         help="Watch all appearances; get real-time notifications during session")
     parser.add_argument("--catch", nargs="*", default=[],
@@ -93,9 +92,7 @@ def main():
 
     post_config(args.camera, args.watch, args.catch)
 
-    client = mqtt.Client(client_id=args.device)
-    if args.device != "":
-        client._clean_session = False #enables persistent sessions
+    client = mqtt.Client()
     client.on_connect = _on_connect
     client.on_message = _on_message
 

@@ -9,8 +9,15 @@ from registry import Object_register
 
 client = mqtt.Client()
 
-TOPIC_CATCH = 'nano/events/catch'
+#topics to publish to:
 TOPIC_WATCH = 'nano/events/watch'
+TOPIC_CATCH = 'nano/events/catch' 
+
+
+#topics to subscribe to:
+TOPIC_RTSP_SERVER = 'rtsp/disconnect'
+
+#per-object 'watch' notification interval:
 WATCH_INTERVAL = 60
 
 MQTT_BROKER = 'localhost'
@@ -20,32 +27,47 @@ MQTT_PORT = 1883
 def _on_connect(client, userdata, flags, rc):
     if rc == 0:
         print("[Notif Service] Connected to on-device MQTT broker" )
+        client.subscribe(TOPIC_RTSP_SERVER, qos=1)
     else:
         print(f"[Notif Service] Connection to MQTT broker failed")
 
 def _on_publish(client, userdata, mid):
     print(f"[Notif Service] Notification {mid} sent")
 
+def _on_message(client, userdata, msg):
+    if msg.topic == TOPIC_RTSP_SERVER:
+        _publish_catch_summary()
+        Object_register.catch = {}
+        Object_register.watch = {}
+        print("[Notif Service] Video Client disconnected, 'catch' events summary published ")
+
+
 client.on_connect = _on_connect
 client.on_publish = _on_publish
+client.on_message = _on_message
 
 
 def update_system(event_name, event):
+    '''
+    expects 'watch' and 'catch' lists to be mutually exclusive
+    '''
+
     if event_name == 'watch':
         obj = event['detected']
         now = event['time']
         last = Object_register.watch.get(obj)
         if not last or (now - last) > WATCH_INTERVAL:
+            #write timestamp to objects register and fire notification hook
             Object_register.watch[obj] = now
             _publish_watch_event(event)
             
     elif event_name == 'catch':
         obj = event['detected']
         now = event['time']
-        last = Object_register.catch.get(obj)
-        if not last:
+        seen = Object_register.catch.get(obj)
+        if not seen:
+            #write timestamp to objects register
             Object_register.catch[obj] = now
-
 
 
 

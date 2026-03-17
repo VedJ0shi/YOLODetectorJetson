@@ -66,7 +66,7 @@ def start_camera_detection():
         ok, frame = cam.read()
         if ok:
             now  = time.time()
-            #detection call
+            #AI detection call
             objs = Object_detector.detect(frame)
             
             #frame annotation procedure
@@ -80,11 +80,7 @@ def start_camera_detection():
                 frame = cv2.putText(frame, f'{label} ({str(score)})', (xmin,ymin), cv2.FONT_HERSHEY_SIMPLEX , 0.75, color, 1, cv2.LINE_AA)
 
                 # Update system state and fire notification hooks
-                i = 0
                 if label in Object_register.watch:
-                    if i == 0:
-                        print("Object_register initialized", Object_register.watch, Object_register.catch)
-                        i = 1
                     update_system("watch", {"detected": label, "time": now})
     
                 if label in Object_register.catch:
