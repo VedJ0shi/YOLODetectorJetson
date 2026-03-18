@@ -18,7 +18,7 @@ TOPIC_CATCH = 'nano/events/catch'
 TOPIC_RTSP_SERVER = 'rtsp/disconnect'
 
 #per-object 'watch' notification interval:
-WATCH_INTERVAL = 60
+WATCH_INTERVAL = 10
 
 MQTT_BROKER = 'localhost'
 MQTT_PORT = 1883

@@ -78,7 +78,7 @@ def _on_message(client, userdata, msg):
                 t = datetime.datetime.fromtimestamp(ts).strftime("%H:%M:%S")
                 print(f"         {label:20s} first seen at {t}")
         else:
-            print("         (none of the watched objects were detected)")
+            print("         (none of the 'catch' objects were detected)")
 
 
 def main():
